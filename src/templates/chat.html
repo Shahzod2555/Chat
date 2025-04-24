@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Чат с {{ recipient.username }}
+{% endblock %}
+
+{% block content %}
+<div id="log"></div>
+<div class="container">
+    <div class="d-flex align-items-center">
+        <a href="{{url_for('app_blueprint.home')}}">Назад</a>
+        <h3 class="text-center m-auto p-2">{{ recipient.username }}</h3>
+    </div>
+    <div class="d-frid g-2" style="display: grid; gap: 20px;">
+        <div id="messages" style="min-height: 80vh; border: 1px solid #ccc; border-radius: 1%; padding: 10px; max-height: 700px; height: 100%; overflow-y: auto;">
+            {% for message in messages %}
+                {% if message.sender_id == current_user.id %}
+                <div style="justify-content: end; display: grid;">
+                    <p class="m-0 p-2" style="background-color: #007bff; color: #fff; border-radius: 10px; border-bottom-right-radius: 0; text-align: left; justify-self: end; ">{{ message.content }}</p>
+                </div>
+                <hr>
+                {% else %}
+                <div style="justify-content: start; display: grid;">
+                    <p class="m-0 p-2" style="background-color: #e1e5eb; color: #4b4b4b; border-radius: 10px; border-bottom-left-radius: 0;">{{ message.content }}</p>
+                </div>
+                <hr>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <div style="gap: 10px; display: flex;">
+            <input id="message" class="form-input w-100" style="border: 1px solid #ccc; border-radius: 5px;" placeholder="Введите сообщение">
+            <button class="btn btn-primary" onclick="sendMessage()">Отправить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const socket = io();
+
+socket.on('connect', function() {
+    console.log("Подключение установлено.");
+});
+
+socket.on('after_connect', function(msg) {
+    console.log("Сервер:", msg.data);
+});
+
+socket.on('error', function(data) {
+    alert("Ошибка: " + data.data);
+});
+
+socket.on('receive_private_message', function(data) {
+    const messagesDiv = document.getElementById('messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.style.display = 'grid';
+
+    if (data.sender_id === {{ current_user.id }}) {
+        msgDiv.style.justifyContent = 'end';
+        msgDiv.innerHTML = `<p class="m-0 p-2" style="background-color: #007bff; color: #fff; border-radius: 10px; border-bottom-right-radius: 0; text-align: left; justify-self: end; ">${data.message}</p>`;
+    } else {
+        msgDiv.style.justifyContent = 'start';
+        msgDiv.innerHTML = `<p class="m-0 p-2" style="background-color: #e1e5eb; color: #4b4b4b; border-radius: 10px; border-bottom-left-radius: 0;">${data.message}</p>`;
+    }
+
+    messagesDiv.appendChild(msgDiv);
+    scrollToBottom();
+});
+
+function scrollToBottom() {
+    const messagesDiv = document.getElementById('messages');
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    scrollToBottom();
+});
+
+function sendMessage() {
+    const input = document.getElementById('message');
+    const message = input.value.trim();
+    if (!message) return;
+
+    socket.emit('send_private_message', {
+        recipient_id: {{ recipient.id }},
+        message: message
+    });
+
+    input.value = '';
+}
+</script>
+
+{% endblock %}
